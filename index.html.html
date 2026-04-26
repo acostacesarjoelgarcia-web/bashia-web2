@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Bashia Web Pro</title>
+
+<style>
+body {
+    margin:0;
+    background:#0f172a;
+    color:white;
+    font-family:Arial;
+}
+
+header {
+    background:#020617;
+    padding:15px;
+    text-align:center;
+    font-weight:bold;
+}
+
+#chat {
+    height:75vh;
+    overflow:auto;
+    padding:10px;
+}
+
+.msg {
+    padding:12px;
+    margin:8px;
+    border-radius:10px;
+    max-width:70%;
+}
+
+.user { background:#2563eb; margin-left:auto; }
+.ai { background:#1e293b; }
+
+#inputBox {
+    display:flex;
+    padding:10px;
+    background:#020617;
+}
+
+input {
+    flex:1;
+    padding:10px;
+    border:none;
+    border-radius:5px;
+}
+
+button {
+    margin-left:10px;
+    padding:10px;
+    background:#22c55e;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<header>Bashia Web Pro (Groq IA)</header>
+
+<div id="chat"></div>
+
+<div id="inputBox">
+<input id="input" placeholder="Escribe...">
+<button onclick="send()">Enviar</button>
+</div>
+
+<script>
+// 🔑 PON TU API KEY AQUÍ
+const API_KEY = "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";
+
+// memoria
+let memory = JSON.parse(localStorage.getItem("mem")) || [];
+
+// UI
+function add(text,type){
+    let d=document.createElement("div");
+    d.className="msg "+type;
+    d.innerText=text;
+    chat.appendChild(d);
+    chat.scrollTop=99999;
+}
+
+// IA REAL (Groq)
+async function askAI(input){
+
+    // comandos tipo tu python
+    if(input.startsWith("abre ")){
+        let q=input.replace("abre ","");
+        window.open("https://google.com/search?q="+q);
+        return "Buscando "+q;
+    }
+
+    add("Escribiendo...", "ai");
+
+    try{
+        let res = await fetch("https://api.groq.com/openai/v1/chat/completions",{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json",
+                "Authorization":"Bearer "+API_KEY
+            },
+            body:JSON.stringify({
+                model:"llama-3.3-70b-versatile",
+                messages:[
+                    {role:"system", content:"Eres Bashia, IA inteligente, directa y útil."},
+                    ...memory,
+                    {role:"user", content:input}
+                ]
+            })
+        });
+
+        let data = await res.json();
+
+        let reply = data.choices[0].message.content;
+
+        // guardar memoria
+        memory.push({role:"user", content:input});
+        memory.push({role:"assistant", content:reply});
+
+        if(memory.length>20) memory=memory.slice(-20);
+
+        localStorage.setItem("mem", JSON.stringify(memory));
+
+        return reply;
+
+    }catch(e){
+        return "Error de conexión";
+    }
+}
+
+// enviar
+async function send(){
+    let inputText = input.value;
+    if(!inputText) return;
+
+    add(inputText,"user");
+    input.value="";
+
+    let response = await askAI(inputText);
+
+    // eliminar "Escribiendo..."
+    let msgs = document.querySelectorAll(".ai");
+    if(msgs[msgs.length-1].innerText==="Escribiendo...")
+        msgs[msgs.length-1].remove();
+
+    add(response,"ai");
+}
+</script>
+
+</body>
+</html>
